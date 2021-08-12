@@ -1,0 +1,7 @@
+<-- https://libvirt.org/formatdomain.html -->
+	<disk type='block' device='disk'>
+      <driver name='qemu' type='raw' cache='none'/>
+      <source dev='/dev/md0'/>
+      <target dev='sdb' bus='sata'/>
+      <address type='drive' controller='0' bus='0' target='0' unit='1'/>
+    </disk>

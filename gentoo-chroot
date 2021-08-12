@@ -1,0 +1,9 @@
+MOUNTDIR="/mnt"
+mount /dev/nvme0n1p5 $MOUNTDIR
+mount /dev/nvme0n1p1 $MOUNTDIR/boot
+mount --types proc /proc $MOUNTDIR/proc
+mount --rbind /sys $MOUNTDIR/sys
+mount --make-rslave $MOUNTDIR/sys
+mount --rbind /dev $MOUNTDIR/dev
+mount --make-rslave $MOUNTDIR/dev
+chroot $MOUNTDIR  

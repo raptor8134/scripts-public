@@ -1,0 +1,21 @@
+#!/bin/bash
+archlinux=""
+ubuntu=""
+gentoo=""
+fedora=""
+ICONSTRING="$(grep 'LOGO' /etc/os-release | sed 's/LOGO=//g')"
+ICON="$(eval 'eval "echo \$$ICONSTRING"')"
+if [ -z $ICON ]; then
+	ICON=""
+fi
+
+NAME=$(grep 'PRETTY_NAME' /etc/os-release | sed 's/PRETTY_NAME=//g;s/"//g')
+ID="$(grep 'ID' /etc/os-release | sed 's/ID=//g')"
+CPU="$(lscpu | grep 'Model name:'  | xargs | cut -f 3- -d ' ')"
+NCPU="$(lscpu | grep 'CPU(s)' | xargs | cut -f 2 -d ' ')"
+MEM="$(lsmem | grep 'Total online' | xargs | cut -f 4  -d ' ')"
+COLOR="\033[$(grep 'ANSI_COLOR' /etc/os-release | sed 's/ANSI_COLOR=//g;s/"//g')m"
+
+printf "$COLOR$ICON\033[0;1m $NAME $VERSION\033[0m\n"
+printf "﬙ $CPU\n"
+printf " $MEM Memory\n"

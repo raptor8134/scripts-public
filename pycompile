@@ -1,0 +1,5 @@
+#!/bin/bash
+file=$(echo $1 | cut -f 1 -d ".")
+ver=$(pacman -Q python | cut -f 2 -d " " | head -c 3)
+cython3 -3 --embed -o $file.c $1
+gcc -Os -I /usr/include/python$ver -o $file $file.c -lpython$ver -lpthread -lm -lutil -ldl

@@ -1,0 +1,4 @@
+#!/bin/bash
+rm .SRCINFO
+makepkg --printsrcinfo > .SRCINFO
+git add .SRCINFO

@@ -1,0 +1,150 @@
+#!/bin/bash
+
+#
+# So basically pacstrap but epic
+# Made by u/raptor8134
+# Warning: this script is not endorsed by the developers of yay and is also unstable and may screw up your computer/drive
+#	 
+
+# define text colors and styles, even though this script only uses 2 or 3
+off="\033[0m"; bold="\033[1m"; underscore="\033[4m"; blink="\033[5"; reverse="\033[7m"; concealed="\033[8m"; black="\033[30"; red="\033[31m"; green="\033[32m"; yellow="\033[33m"; blue="\033[34m"; magenta="\033[35m"; cyan="\033[36m"; white="\033[37m"; blackbg="\033[40m"; redbg="\033[41m"; greenbg="\033[42m"; yellowbg="\033[43m"; bluebg="\033[44m"; magentabg="\033[45m"; cyanbg="\033[46m"; whitebg="\033[47m"
+
+error() { echo -e "$bold$red \berror:$white Installation failed!$off" && exit 1; }
+
+if [[ "$@" == "" ]]; then echo "Try yaystrap --help for usage instructions."; exit 1; fi
+
+helper="yay"
+OPTIND=1
+
+while getopts "bc:df:hqrs" opt; do
+case "$opt" in 
+	b|bin)
+		bin=true
+		;;
+	c|copy)
+		copy=true
+		;;
+	d|dryrun)
+		dry="#"
+		dryrun=true
+		;;
+	f|file)
+		inputfile=$PWD$OPTARG
+		packages=$(cat $inputfile)	
+		;;
+	h|help|\?)
+		cat <<EOF >&2
+Usage: sudo yaystrap [OPTIONS...] [TARGET]
+Installs the yay (yet another yogurt) AUR helper
+
+Yaystrap is a utility to automatically install yay and a list of AUR packages to an Arch Linux system; capable of targeting chroots and running systems. The target should be the full path to a directory containing an Arch Linux install, ie: a chrootable directory/mount point or the current root directory. 
+
+Options:
+  -b, --bin 		Install yay-bin and remove go, used for systems with limited disk space
+  -c, --copy		Use an existing yay binary instead of copying, default is /usr/bin/yay but another path can be specified
+  -d, --dryrun		Don't install anything, just test the chrooting and package manager detection; useful if you want to fix the script without installs happening
+  -f, --file		File to read packages from, omit to use stdin
+  -h, --help		Show this help message
+  -r, --removedeps	Removes dependencies from host system before exiting
+  -s, --substitute	Installs another AUR helper with yay, removes yay, and finishes the installation of packages with that helper
+
+Example: 'sudo yaystrap -br /mnt'
+Installs yay-bin to a mount or chroot in /mnt, removes go from the target and arch-install-scripts and git from the host if they were not previously installed
+EOF
+		exit
+		;;
+	r|removedeps)
+		removedeps="true"
+		;;
+	s|substitute)
+		helper=$OPTARG
+		;;
+	esac
+done
+
+# check if we are root
+if [ $(id -u) -ne 0 ]; then 
+	echo -e "$bold$red \berror:$white This script must be run as root$off"
+	exit 1
+fi
+
+# find package manager, add yours here if nescessary, but dont forget to add another syntax block for ones with weird commands like pacman 
+for i in pacman apt zypper dnf yum; do
+which $i >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+	pkg="$dry$i"
+	if [[ "$i" == "pacman" ]]; then
+		install="-S "
+		remove="-R "
+	else
+		install="install "
+		remove="remove "
+	fi
+	echo -e "$bold$green==>$white Package manager $pkg detected"
+fi
+done
+
+# install/update dependencies of the script
+echo -e "$bold$green==>$white Installing dependencies$off"
+if [ $(which arch-chroot) == 0 ]; then
+	$pkg$install arch-install-scripts
+	dependencies="arch-install-scripts"
+fi      
+if [[ "$(whereis git)" == "git:" ]]; then
+	$pkg$install git
+	dependencies="$dependencies git"
+fi
+if [[ "$(whereis git)" == "git:" ]] || [[ "$(whereis arch-chroot)" == "arch-chroot:" ]]; then
+	error
+fi
+
+# test variable declarations; If command line options are broken these will work in a pinch
+chroot=false
+dryrun=true
+bin=true
+copy=true
+copydir="/usr/bin/"
+packages="minecraft-launcher"
+chrootdir="/mnt"
+
+# chroot if nescessary; clone into yay and compile; install yay or yay-bin  
+installyay() {
+	if $dryrun; then
+	   	echo -e "$bold$green==>$white Chrooting functions as expected$off"
+		exit 0
+   	fi
+	if [ $copy = 0 ]; then git clone https://github.com/jguer/yay
+		if [[ "$(whereis go)" == "go:" ]]; then 
+			pacman -S go
+	   	fi
+		cd yay
+	   	make
+   	fi
+	if $bin; then ./yay -Sy; ./yay -S yay-bin;
+		if [[ "$(whereis go | sed s/go://g)" != "0" ]]; then yay -R go
+	else 
+		make install
+	   	yay -Syu
+		if [[ "$helper" != "yay" ]]; then
+			yay -S $helper
+			$helper -R yay
+		fi
+	fi
+	if [[ $packages != 0 ]]; then
+		   	$helper -S $packages
+		fi
+   	fi
+	cd .. && rm -rf yay/
+}
+if $chroot; then
+	arch-chroot $chrootdir installyay 
+else
+	installyay
+fi
+
+if $removedeps; then $pkg$remove$dependencies; fi
+
+if [ $? = 0 ]; then 
+	echo -e "$bold$green==>$white Installation complete!$off"
+	exit 0
+fi
